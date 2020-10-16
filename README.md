@@ -1,8 +1,8 @@
 # blcli
 
-```
 blcli is a command-line interface for BitLaunch.io
 
+```
 Usage:
   blcli [command]
 
@@ -33,8 +33,16 @@ page](https://github.com/bitlaunchio/blcli/releases) for the
 
 You can optionally move the `blcli` binary to your path. For example:
 
-```
+```sh
 sudo mv ~/blcli /usr/local/bin
+```
+
+### Building from source
+```sh
+git clone https://github.com/bitlaunchio/blcli.git
+cd blcli
+go get .
+go build .
 ```
 
 ## Authentication
@@ -45,29 +53,54 @@ Once you have your token, you can either:
 
 1. Specify it with each request:
 
-`blcli --token TOKEN_HERE ...`
+```sh
+blcli --token TOKEN_HERE ...
+```
 
 2. Set it as an environment variable:
 
-`export BL_API_TOKEN=TOKEN_HERE`
+```sh
+export BL_API_TOKEN=TOKEN_HERE
+```
 
 ## Examples
 
 Here are a few examples of using `blcli`. More help is available with `blcli [command] -h` and further documentation is available at the [developer hub](https://developers.bitlaunch.io/)
 
-* List all servers on your account:
+* View your account and balance:
+```sh
+blcli account
 ```
+* View your account usage:
+```sh
+blcli account usage --period 2020-09
+```
+* View your account history/activity:
+```sh
+blcli account history
+```
+* List all servers on your account:
+```sh
 blcli server list
 ```
 * Create a server:
+```sh
+blcli server create --host bitlaunch --name test --region lon1 --image 10002 --size nibble-1024 --password b1Tl4uNCH!
 ```
-blcli server create --host bitlaunch --name test --region <region-id> --image <image-id> --size <size-id> --password b1Tl4uNCH!
+* Restart a server:
+```sh
+blcli server restart aaaaaaaaaaabbbbbbbbbbbbb
+```
+* Rebuild a server:
+```sh
+blcli server rebuild aaaaaaaaaaabbbbbbbbbbbbb --image 10000 --description "Ubuntu 18.04 LTS"
+```
+* Resize a server:
+```sh
+blcli server resize aaaaaaaaaaabbbbbbbbbbbbb --size nibble-2048
 ```
 * Create a new Lightning Network transaction:
-```
+```sh
 blcli transaction create 20 BTC --lightning
 ```
-* View your account and balance
-```
-blcli account
-```
+

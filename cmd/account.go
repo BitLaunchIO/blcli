@@ -24,18 +24,82 @@ import (
 
 // Account sets up the account command
 func Account() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "account",
 		Short: "Retrieve account information",
-		Long:  ``,
+		Long:  `Use the subcommands to display information about your account.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			account, err := client.Account.Show()
-			if err != nil {
-				fmt.Printf("Error getting account information : %v", err)
-				os.Exit(1)
-			}
+			if len(args) == 0 {
+				account, err := client.Account.Show()
+				if err != nil {
+					fmt.Printf("Error getting account information : %v", err)
+					os.Exit(1)
+				}
 
-			printer.Output(account)
+				printer.Output(account)
+			}
 		},
 	}
+
+	cmd.AddCommand(accountShow)
+	cmd.AddCommand(accountUsage)
+	cmd.AddCommand(accountHistory)
+
+	accountUsage.Flags().StringP("period", "p", "latest", "filter for period, format: YYYY-MM or latest")
+
+	accountHistory.Flags().IntP("page", "p", 1, "page number of history results to show")
+	accountHistory.Flags().IntP("items", "i", 25, "how many history results to show")
+
+	return cmd
+}
+
+var accountShow = &cobra.Command{
+	Use:   "show",
+	Short: "Retrieve account information",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		account, err := client.Account.Show()
+		if err != nil {
+			fmt.Printf("Error getting account information : %v", err)
+			os.Exit(1)
+		}
+
+		printer.Output(account)
+	},
+}
+
+var accountUsage = &cobra.Command{
+	Use:   "usage",
+	Short: "Retrieve account usage information",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		period, _ := cmd.Flags().GetString("period")
+
+		usage, err := client.Account.Usage(period)
+
+		if err != nil {
+			fmt.Printf("Error getting account usage information : %v", err)
+			os.Exit(1)
+		}
+
+		printer.Output(usage)
+	},
+}
+
+var accountHistory = &cobra.Command{
+	Use:   "history",
+	Short: "Retrieve account history information",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		page, _ := cmd.Flags().GetInt("page")
+		items, _ := cmd.Flags().GetInt("items")
+
+		history, err := client.Account.History(page, items)
+		if err != nil {
+			fmt.Printf("Error getting account history information : %v", err)
+			os.Exit(1)
+		}
+
+		printer.Output(history)
+	},
 }

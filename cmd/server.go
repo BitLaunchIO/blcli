@@ -17,6 +17,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"./printer"
 	"github.com/bitlaunchio/gobitlaunch"
@@ -37,6 +39,11 @@ func Server() *cobra.Command {
 	cmd.AddCommand(serverList)
 	cmd.AddCommand(serverDestroy)
 	cmd.AddCommand(serverCreate)
+	cmd.AddCommand(serverRebuild)
+	cmd.AddCommand(serverResize)
+	cmd.AddCommand(serverRestart)
+	cmd.AddCommand(serverProtection)
+	cmd.AddCommand(serverSetPorts)
 
 	serverCreate.Flags().StringP("name", "n", "", "name for the new server")
 	serverCreate.Flags().StringP("host", "t", "", "target provider/host name: bitlaunch, digitalocean, vultr or linode")
@@ -46,11 +53,25 @@ func Server() *cobra.Command {
 	serverCreate.Flags().StringSliceP("sshkey", "k", []string{}, "ssh key ids, comma separated for more than one")
 	serverCreate.Flags().StringP("password", "p", "", "password")
 
+	serverRebuild.Flags().StringP("image", "i", "", "image/app id")
+	serverRebuild.Flags().StringP("description", "d", "", "image/app description")
+
+	serverResize.Flags().StringP("size", "s", "", "plan/size id")
+
+	serverSetPorts.Flags().StringP("ports", "p", "", "port:protocol, comma separated for more than one")
+
 	serverCreate.MarkFlagRequired("name")
 	serverCreate.MarkFlagRequired("host")
 	serverCreate.MarkFlagRequired("image")
 	serverCreate.MarkFlagRequired("size")
 	serverCreate.MarkFlagRequired("region")
+
+	serverRebuild.MarkFlagRequired("image")
+	serverRebuild.MarkFlagRequired("description")
+
+	serverResize.MarkFlagRequired("size")
+
+	serverSetPorts.MarkFlagRequired("ports")
 
 	return cmd
 }
@@ -149,6 +170,161 @@ var serverCreate = &cobra.Command{
 		server, err := client.Server.Create(&opts)
 		if err != nil {
 			fmt.Printf("Error creating server : %v\n", err)
+			os.Exit(1)
+		}
+
+		printer.Output(server)
+	},
+}
+
+var serverRebuild = &cobra.Command{
+	Use:     "rebuild",
+	Short:   "Rebuild a server",
+	Long:    `rebuild <server-id>`,
+	Aliases: []string{},
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("please provide a server ID")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		id := args[0]
+		opts := gobitlaunch.RebuildOptions{}
+		opts.ID, _ = cmd.Flags().GetString("image")
+		opts.Description, _ = cmd.Flags().GetString("description")
+
+		err := client.Server.Rebuild(id, &opts)
+		if err != nil {
+			fmt.Printf("Error rebuilding server : %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Rebuilding server")
+	},
+}
+
+var serverResize = &cobra.Command{
+	Use:     "resize",
+	Short:   "Resize a server",
+	Long:    `resize <server-id>`,
+	Aliases: []string{},
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("please provide a server ID")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		id := args[0]
+		sizeID, _ := cmd.Flags().GetString("size")
+
+		err := client.Server.Resize(id, sizeID)
+		if err != nil {
+			fmt.Printf("Error resizing server : %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Resizing server")
+	},
+}
+
+var serverRestart = &cobra.Command{
+	Use:     "restart",
+	Short:   "Restart a server",
+	Long:    `restart <server-id>`,
+	Aliases: []string{"reboot"},
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("please provide a server ID")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		id := args[0]
+		err := client.Server.Restart(id)
+		if err != nil {
+			fmt.Printf("Error restarting server : %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Restarted server")
+	},
+}
+
+var serverProtection = &cobra.Command{
+	Use:     "protection",
+	Short:   "Protect a server",
+	Long:    `protection <server-id> [enable true e] or [disable false d]`,
+	Aliases: []string{"protect"},
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("please provide a server ID")
+		}
+		if len(args) < 2 {
+			return errors.New("please provide a protection state")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		id := args[0]
+
+		server, err := client.Server.Protection(id, func() bool {
+			if args[1] == "enable" || args[1] == "true" || args[1] == "e" {
+				return true
+			} else if args[1] == "disable" || args[1] == "false" || args[1] == "d" {
+				return false
+			}
+
+			fmt.Println("Invalid protection state")
+			os.Exit(1)
+			return false
+		}())
+		if err != nil {
+			fmt.Printf("Error resizing server : %v\n", err)
+			os.Exit(1)
+		}
+
+		printer.Output(server)
+	},
+}
+
+var serverSetPorts = &cobra.Command{
+	Use:     "setports",
+	Short:   "Set ports for a protected server",
+	Long:    `setports <server-id>`,
+	Aliases: []string{"ports"},
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("please provide a server ID")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		id := args[0]
+		ports, _ := cmd.Flags().GetString("ports")
+
+		portItems := strings.Split(ports, ",")
+		portList := []gobitlaunch.Ports{}
+
+		for _, port := range portItems {
+			portObj := strings.Split(port, ":")
+
+			num, err := strconv.Atoi(portObj[0])
+			if err != nil {
+				fmt.Printf("Error setting server ports : %v\n", err)
+				os.Exit(1)
+			}
+
+			portList = append(portList, gobitlaunch.Ports{
+				PortNumber: num,
+				Protocol:   portObj[1],
+			})
+		}
+
+		server, err := client.Server.SetPorts(id, &portList)
+		if err != nil {
+			fmt.Printf("Error setting server ports : %v\n", err)
 			os.Exit(1)
 		}
 

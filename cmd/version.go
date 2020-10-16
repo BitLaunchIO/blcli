@@ -24,6 +24,6 @@ var versionCmd = &cobra.Command{
 	Short: "blcli version",
 	Long:  `Print the version number of blcli`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("blcli 0.1")
+		fmt.Println("blcli 1.1.0")
 	},
 }
